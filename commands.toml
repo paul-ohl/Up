@@ -1,0 +1,8 @@
+system = "sudo dnf update -y"
+flatpak = "flatpak update -y"
+rustup = "rustup update"
+cargo = "cargo install-update -a"
+snap = "sudo snap refresh"
+lazyvim = "nvim --headless '+Lazy! sync' +qa"
+npm = "sudo npm update -g"
+pip = "pip install --upgrade pip"
