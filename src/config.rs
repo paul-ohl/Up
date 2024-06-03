@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, error::Error, fmt};
+use std::{collections::HashMap, error::Error, fmt, path::PathBuf};
 
 use config::{Config, File, FileFormat};
 
@@ -8,7 +8,7 @@ use crate::UpCli;
 /// # Errors
 /// Returns an error if the configuration file cannot be found or read.
 pub fn get_commands(arguments: &UpCli) -> Result<Vec<(String, String)>, ConfigError> {
-    let config_path = get_config_path(arguments)?;
+    let config_path = get_config_path(&arguments.config)?;
 
     let config = Config::builder()
         .add_source(File::new(&config_path, FileFormat::Toml))
@@ -30,8 +30,8 @@ pub fn get_commands(arguments: &UpCli) -> Result<Vec<(String, String)>, ConfigEr
     Ok(config)
 }
 
-fn get_config_path(config_file_path: &UpCli) -> Result<String, ConfigError> {
-    let path = if let Some(path) = &config_file_path.config {
+fn get_config_path(config_file_path: &Option<PathBuf>) -> Result<String, ConfigError> {
+    let path = if let Some(path) = &config_file_path {
         path.clone()
     } else {
         let mut path = dirs::config_dir().ok_or_else(|| {
@@ -66,13 +66,13 @@ impl fmt::Display for ConfigError {
 
 impl Error for ConfigError {}
 
+#[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
+    use super::*;
+    use std::{env, path::PathBuf};
 
     use crate::UpCli;
-
-    use super::get_commands;
 
     #[test]
     fn get_config_fails_properly_with_invalid_config_file() {
@@ -95,5 +95,33 @@ mod test {
                 "get_commands for {wrong_file} should have failed",
             );
         }
+    }
+
+    #[test]
+    fn get_file_path_works_properly() {
+        let path = get_config_path(&Some("/tmp/config.toml".into()));
+        assert!(path.is_ok());
+        assert_eq!(path.unwrap(), "/tmp/config.toml");
+    }
+
+    // This test will fail on Windows
+    #[test]
+    fn get_config_path_defaults_to_standard_config_directory() {
+        let path = get_config_path(&None);
+        assert!(path.is_ok());
+        let home = env::var("HOME").unwrap();
+        assert_eq!(path.unwrap(), home + "/.config/up/commands.toml");
+    }
+
+    #[test]
+    fn test_error_display() {
+        let error = ConfigError::NotFound("file1.toml".to_string());
+        assert_eq!(error.to_string(), "Error reading config: file1.toml");
+
+        let error = ConfigError::FileError("file1.toml".to_string());
+        assert_eq!(error.to_string(), "Error reading config: file1.toml");
+
+        let error = ConfigError::FileEmpty("file1.toml".to_string());
+        assert_eq!(error.to_string(), "Error reading config: file1.toml");
     }
 }

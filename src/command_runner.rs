@@ -33,12 +33,7 @@ pub fn run_commands(commands: &[(String, String)]) -> Result<(), CommandRunnerEr
     let initial_cursor_line = cursor::position()
         .map_err(|err| CommandRunnerError::TerminalError(err.to_string()))?
         .1;
-    let max_command_length = commands
-        .iter()
-        .map(|(name, _)| name)
-        .map(String::len)
-        .max()
-        .unwrap_or(0) as u16;
+    let max_command_length = get_max_command_length(commands);
     let vec_commands: Vec<_> = commands.iter().collect();
 
     vec_commands
@@ -71,6 +66,17 @@ pub fn run_commands(commands: &[(String, String)]) -> Result<(), CommandRunnerEr
 
     go_to_last_line(initial_cursor_line + commands.len() as u16, &stdout_mutex);
     Ok(())
+}
+
+// Allowed here because I don't expect a command to exceed 65535 (u16::MAX)
+#[allow(clippy::cast_possible_truncation)]
+fn get_max_command_length(commands: &[(String, String)]) -> u16 {
+    commands
+        .iter()
+        .map(|(name, _)| name)
+        .map(String::len)
+        .max()
+        .unwrap_or(0) as u16
 }
 
 fn execute_command(command: &str) -> Result<Output, CommandRunnerError> {
@@ -117,4 +123,62 @@ fn stderr_first_line(stderr: Vec<u8>) -> String {
         .unwrap_or("")
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stderr_first_line_works_as_expected() {
+        let lines = ["hello, world", "hello,\nworld", ""];
+        let expected = ["hello, world", "hello,", ""];
+        for i in 0..lines.len() {
+            let line: Vec<u8> = lines[i].into();
+            assert_eq!(stderr_first_line(line), expected[i]);
+        }
+    }
+
+    #[test]
+    fn execute_fails_with_incorrect_command() {
+        let commands = ["/bin/this_command_doesnt_exist"];
+        for command in commands {
+            assert!(
+                execute_command(command).is_err(),
+                "command {command} should have failed"
+            );
+        }
+    }
+
+    #[test]
+    fn check_get_max_command_length() {
+        let commands = [
+            ("hello".to_string(), "command".to_string()),
+            ("world".to_string(), "command".to_string()),
+            (String::new(), "command".to_string()),
+            ("two".to_string(), "command".to_string()),
+            (
+                "very long command name yes yes yes".to_string(),
+                "command".to_string(),
+            ),
+        ];
+        assert_eq!(get_max_command_length(&commands), 34);
+
+        let commands = [
+            (String::new(), String::new()),
+            (String::new(), String::new()),
+            (String::new(), String::new()),
+        ];
+        assert_eq!(get_max_command_length(&commands), 0);
+        assert_eq!(get_max_command_length(&[]), 0);
+    }
+
+    #[test]
+    fn test_error_display() {
+        let error = CommandRunnerError::TerminalError("command".to_string());
+        assert_eq!(error.to_string(), "Error executing commands:\ncommand");
+
+        let error = CommandRunnerError::ExecutionError("command".to_string());
+        assert_eq!(error.to_string(), "Error executing commands:\ncommand");
+    }
 }
