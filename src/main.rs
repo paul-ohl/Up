@@ -1,22 +1,23 @@
 use clap::Parser;
-use color_eyre::eyre::{eyre, Result};
 use up::{config::get_commands, run_commands, UpCli};
 
-fn main() -> Result<()> {
-    color_eyre::install()?;
+fn main() {
     let cli_params = UpCli::parse();
-    let commands = get_commands(&cli_params)?;
-
-    run_commands(&commands)?;
-    if cli_params.reboot {
-        reboot_system()?;
+    match get_commands(&cli_params) {
+        Ok(commands) => {
+            if let Err(e) = run_commands(&commands) {
+                eprintln!("{e}");
+            } else if cli_params.reboot {
+                reboot_system();
+            }
+        }
+        Err(e) => eprintln!("{e}"),
     }
-    Ok(())
 }
 
-fn reboot_system() -> Result<()> {
+fn reboot_system() {
     match system_shutdown::reboot() {
-        Ok(()) => Ok(()),
-        Err(e) => Err(eyre!("Failed to reboot the system: {e}")),
+        Ok(()) => println!("Rebooting..."),
+        Err(e) => eprintln!("Failed rebooting.\n{e}"),
     }
 }
