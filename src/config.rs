@@ -115,8 +115,9 @@ mod test {
     #[test]
     fn get_config_path_defaults_to_standard_config_directory() {
         let path = get_config_path(&None);
+        let check_path = PathBuf::from("/tmp").join("up").join("commands.toml");
         assert!(path.is_ok());
-        assert_eq!(path.unwrap(), "/tmp/up/commands.toml");
+        assert_eq!(path.unwrap(), check_path.to_str().unwrap());
     }
 
     #[test]
