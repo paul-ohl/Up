@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  CI:
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
