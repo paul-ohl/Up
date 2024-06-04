@@ -19,7 +19,7 @@ Up uses [rayon](https://crates.io/crates/rayon) for multi-threading.
   linux)
 - [x] Select list of commands from the cli
 - [ ] Create a config file if none exists
-- [ ] Read which packages to update from cli arguments
+- [ ] Create multiple command groups and select them from the cli
 - [ ] Runs reliably in the background with a simple way to tell that something
   failed
 - [ ] Write a cron job

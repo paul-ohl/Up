@@ -5,6 +5,15 @@ use config::{Config, File, FileFormat};
 
 use crate::UpCli;
 
+#[cfg(test)]
+use crate::test::dirs::config_dir;
+#[cfg(not(test))]
+use dirs::config_dir;
+
+const DEFAULT_CONFIG_FILE_CONTENT: &str = r#"# Add your own commands here!
+edit_the_config_to_send_commands = "echo up"
+"#;
+
 /// # Errors
 /// Returns an error if the configuration file cannot be found or read.
 pub fn get_commands(arguments: &UpCli) -> Result<Vec<(String, String)>, ConfigError> {
@@ -20,6 +29,7 @@ pub fn get_commands(arguments: &UpCli) -> Result<Vec<(String, String)>, ConfigEr
     let config: Vec<(String, String)> = config
         .into_iter()
         .filter(|(_, command)| !command.is_empty())
+        .map(|(command_name, command)| (command_name.replace('_', " "), command))
         .collect();
 
     if config.is_empty() {
@@ -34,7 +44,7 @@ fn get_config_path(config_file_path: &Option<PathBuf>) -> Result<String, ConfigE
     let path = if let Some(path) = &config_file_path {
         path.clone()
     } else {
-        let mut path = dirs::config_dir().ok_or_else(|| {
+        let mut path = config_dir().ok_or_else(|| {
             ConfigError::NotFound("Could not find a standard config location".to_string())
         })?;
         path.push("up");
@@ -42,13 +52,35 @@ fn get_config_path(config_file_path: &Option<PathBuf>) -> Result<String, ConfigE
         path
     };
 
+    // Create the directory and file if it doesn't exist
+    if !path.exists() {
+        create_config_file_path(&path)?;
+    }
+
     path.to_str()
         .ok_or_else(|| panic!("This is an unexpected error that shouldn't happen. Please report this on Github. In the mean time, you can use up with the `-c` option."))
         .map(std::string::ToString::to_string)
 }
 
+fn create_config_file_path(path: &PathBuf) -> Result<(), ConfigError> {
+    let parent = path.parent().ok_or_else(|| {
+        ConfigError::FsError("Could not get config file's parent directory".to_string())
+    })?;
+    if !parent.exists() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            ConfigError::FsError(format!(
+                "Could not create directory {parent:?} for config file.\n{e}",
+            ))
+        })?;
+    }
+    std::fs::write(&path, DEFAULT_CONFIG_FILE_CONTENT)
+        .map_err(|e| ConfigError::FsError(format!("Could not create file {path:?}.\n{e}",)))?;
+    Ok(())
+}
+
 #[derive(Debug)]
 pub enum ConfigError {
+    FsError(String),
     NotFound(String),
     FileError(String),
     FileEmpty(String),
@@ -57,7 +89,7 @@ pub enum ConfigError {
 impl fmt::Display for ConfigError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotFound(s) | Self::FileEmpty(s) | Self::FileError(s) => {
+            Self::NotFound(s) | Self::FileEmpty(s) | Self::FileError(s) | Self::FsError(s) => {
                 write!(f, "Error reading config: {s}")
             }
         }
@@ -70,7 +102,7 @@ impl Error for ConfigError {}
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::{env, path::PathBuf};
+    use std::path::PathBuf;
 
     use crate::UpCli;
 
@@ -104,13 +136,25 @@ mod test {
         assert_eq!(path.unwrap(), "/tmp/config.toml");
     }
 
-    // This test will fail on Windows
+    // This test may fail on Windows
     #[test]
     fn get_config_path_defaults_to_standard_config_directory() {
         let path = get_config_path(&None);
         assert!(path.is_ok());
-        let home = env::var("HOME").unwrap();
-        assert_eq!(path.unwrap(), home + "/.config/up/commands.toml");
+        assert_eq!(path.unwrap(), "/tmp/up/commands.toml");
+    }
+
+    #[test]
+    fn get_config_works_with_valid_input() {
+        let arguments = UpCli {
+            reboot: false,
+            config: Some(PathBuf::from("./test/valid_config.toml")),
+        };
+        let result = get_commands(&arguments);
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.contains(&(String::from("multiple words"), String::from("echo valid"))));
+        assert!(result.contains(&(String::from("word"), String::from("echo valid"))));
     }
 
     #[test]
@@ -123,5 +167,63 @@ mod test {
 
         let error = ConfigError::FileEmpty("file1.toml".to_string());
         assert_eq!(error.to_string(), "Error reading config: file1.toml");
+    }
+
+    fn remove_config_dir() {
+        let config_dir = PathBuf::from("/tmp/up");
+        if config_dir.exists() {
+            // Delete it!
+            std::fs::remove_dir_all(config_dir).unwrap();
+        }
+    }
+
+    #[test]
+    fn get_commands_creates_the_config_file_if_absent() {
+        // Make sure the config directory is absent
+        remove_config_dir();
+
+        let arguments = UpCli {
+            reboot: false,
+            config: Some(PathBuf::from("/tmp/up/commands.toml")),
+        };
+        let result = get_commands(&arguments);
+        assert_eq!(
+            result.unwrap(),
+            vec![(
+                String::from("edit the config to send commands"),
+                String::from("echo up")
+            )]
+        );
+        let config_dir = PathBuf::from("/tmp/up");
+        assert!(config_dir.exists());
+        remove_config_dir();
+    }
+
+    #[test]
+    fn get_commands_creates_the_config_file_if_absent_2() {
+        // delete the config file
+        let config_file = PathBuf::from("/tmp/commands.toml");
+        if config_file.exists() {
+            std::fs::remove_file(config_file).unwrap();
+        }
+
+        let arguments = UpCli {
+            reboot: false,
+            config: Some(PathBuf::from("/tmp/commands.toml")),
+        };
+        let result = get_commands(&arguments);
+        assert_eq!(
+            result.unwrap(),
+            vec![(
+                String::from("edit the config to send commands"),
+                String::from("echo up")
+            )]
+        );
+        let config_file = PathBuf::from("/tmp/commands.toml");
+        assert!(config_file.exists());
+
+        if config_file.exists() {
+            std::fs::remove_file(config_file).unwrap();
+        }
     }
 }

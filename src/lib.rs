@@ -5,3 +5,5 @@ pub mod params;
 pub use command_runner::run_commands;
 pub use params::UpCli;
 
+#[cfg(test)]
+pub mod test;
