@@ -73,7 +73,7 @@ fn create_config_file_path(path: &PathBuf) -> Result<(), ConfigError> {
             ))
         })?;
     }
-    std::fs::write(&path, DEFAULT_CONFIG_FILE_CONTENT)
+    std::fs::write(path, DEFAULT_CONFIG_FILE_CONTENT)
         .map_err(|e| ConfigError::FsError(format!("Could not create file {path:?}.\n{e}",)))?;
     Ok(())
 }
@@ -148,7 +148,7 @@ mod test {
     fn get_config_works_with_valid_input() {
         let arguments = UpCli {
             reboot: false,
-            config: Some(PathBuf::from("./test/valid_config.toml")),
+            config: Some(PathBuf::from("./test/valid_configs/valid_config.toml")),
         };
         let result = get_commands(&arguments);
         assert!(result.is_ok());
