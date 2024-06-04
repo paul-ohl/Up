@@ -1,0 +1,2 @@
+multistep = "echo Hi && echo Hello && echo Bye"
+test = "cat /tmp/idontexist"

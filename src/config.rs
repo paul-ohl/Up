@@ -10,10 +10,6 @@ use crate::test::dirs::config_dir;
 #[cfg(not(test))]
 use dirs::config_dir;
 
-const DEFAULT_CONFIG_FILE_CONTENT: &str = r#"# Add your own commands here!
-edit_the_config_to_send_commands = "echo up"
-"#;
-
 /// # Errors
 /// Returns an error if the configuration file cannot be found or read.
 pub fn get_commands(arguments: &UpCli) -> Result<Vec<(String, String)>, ConfigError> {
@@ -52,30 +48,9 @@ fn get_config_path(config_file_path: &Option<PathBuf>) -> Result<String, ConfigE
         path
     };
 
-    // Create the directory and file if it doesn't exist
-    if !path.exists() {
-        create_config_file_path(&path)?;
-    }
-
     path.to_str()
         .ok_or_else(|| panic!("This is an unexpected error that shouldn't happen. Please report this on Github. In the mean time, you can use up with the `-c` option."))
         .map(std::string::ToString::to_string)
-}
-
-fn create_config_file_path(path: &PathBuf) -> Result<(), ConfigError> {
-    let parent = path.parent().ok_or_else(|| {
-        ConfigError::FsError("Could not get config file's parent directory".to_string())
-    })?;
-    if !parent.exists() {
-        std::fs::create_dir_all(parent).map_err(|e| {
-            ConfigError::FsError(format!(
-                "Could not create directory {parent:?} for config file.\n{e}",
-            ))
-        })?;
-    }
-    std::fs::write(path, DEFAULT_CONFIG_FILE_CONTENT)
-        .map_err(|e| ConfigError::FsError(format!("Could not create file {path:?}.\n{e}",)))?;
-    Ok(())
 }
 
 #[derive(Debug)]
@@ -167,63 +142,5 @@ mod test {
 
         let error = ConfigError::FileEmpty("file1.toml".to_string());
         assert_eq!(error.to_string(), "Error reading config: file1.toml");
-    }
-
-    fn remove_config_dir() {
-        let config_dir = PathBuf::from("/tmp/up");
-        if config_dir.exists() {
-            // Delete it!
-            std::fs::remove_dir_all(config_dir).unwrap();
-        }
-    }
-
-    #[test]
-    fn get_commands_creates_the_config_file_if_absent() {
-        // Make sure the config directory is absent
-        remove_config_dir();
-
-        let arguments = UpCli {
-            reboot: false,
-            config: Some(PathBuf::from("/tmp/up/commands.toml")),
-        };
-        let result = get_commands(&arguments);
-        assert_eq!(
-            result.unwrap(),
-            vec![(
-                String::from("edit the config to send commands"),
-                String::from("echo up")
-            )]
-        );
-        let config_dir = PathBuf::from("/tmp/up");
-        assert!(config_dir.exists());
-        remove_config_dir();
-    }
-
-    #[test]
-    fn get_commands_creates_the_config_file_if_absent_2() {
-        // delete the config file
-        let config_file = PathBuf::from("/tmp/commands.toml");
-        if config_file.exists() {
-            std::fs::remove_file(config_file).unwrap();
-        }
-
-        let arguments = UpCli {
-            reboot: false,
-            config: Some(PathBuf::from("/tmp/commands.toml")),
-        };
-        let result = get_commands(&arguments);
-        assert_eq!(
-            result.unwrap(),
-            vec![(
-                String::from("edit the config to send commands"),
-                String::from("echo up")
-            )]
-        );
-        let config_file = PathBuf::from("/tmp/commands.toml");
-        assert!(config_file.exists());
-
-        if config_file.exists() {
-            std::fs::remove_file(config_file).unwrap();
-        }
     }
 }

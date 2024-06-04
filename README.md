@@ -18,7 +18,6 @@ Up uses [rayon](https://crates.io/crates/rayon) for multi-threading.
 - [x] Read list of commands from standard location (ex: XDG user directory on
   linux)
 - [x] Select list of commands from the cli
-- [ ] Create a config file if none exists
 - [ ] Create multiple command groups and select them from the cli
 - [ ] Runs reliably in the background with a simple way to tell that something
   failed
