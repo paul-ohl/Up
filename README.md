@@ -26,9 +26,38 @@ Up uses [rayon](https://crates.io/crates/rayon) for multi-threading.
 
 ## Installation
 
-The software is currently in alpha, so you'll need to build it yourself.
-Thankfully, there are no special dependencies, you just need the
-[Rust](https://rustup.rs/) toolchain.
+### Pre-built binaries
+
+You can get pre-built binaries
+[here](https://github.com/paul-ohl/up/releases/latest).
+
+If your platform is not present, feel free to [open an
+issue](https://github.com/paul-ohl/Up/issues/new) and ask for it.
+
+You can then install the binary on your system.
+
+```bash
+sudo cp ~/Downloads/up /usr/bin/
+
+# Or for user-level install
+cp ~/Downloads/up ~/.local/bin/
+# You may need to add this directory to your path
+export PATH="$PATH:$HOME/.local/bin" # <-- in your ~/.bashrc or ~/.zshrc
+```
+
+### With `cargo`
+
+You will need the [rust toolchain](https://rustup.rs/) and a linker (`cc` or
+`mold`).
+
+```bash
+cargo install up --git https://github.com/paul-ohl/up
+```
+
+### Manual build
+
+You will need the [rust toolchain](https://rustup.rs/) and a linker (`cc` or
+`mold`).
 
 ```bash
 git clone https://github.com/paul-ohl/Up.git
