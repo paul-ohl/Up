@@ -8,6 +8,7 @@ use std::{
 use crossterm::{cursor, QueueableCommand};
 use rayon::prelude::*;
 
+#[derive(Debug, PartialEq)]
 pub enum CommandRunnerError {
     TerminalError(String),
     ExecutionError(String),
@@ -141,13 +142,10 @@ mod tests {
 
     #[test]
     fn execute_fails_with_incorrect_command() {
-        let commands = ["/bin/this_command_doesnt_exist"];
-        for command in commands {
-            assert!(
-                execute_command(command).is_err(),
-                "command {command} should have failed"
-            );
-        }
+        assert!(
+            execute_command("/bin/this_command_doesnt_exist").is_err(),
+            "command /bin/this_command_doesnt_exist should have failed"
+        );
     }
 
     #[test]
