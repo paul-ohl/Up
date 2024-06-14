@@ -1,2 +1,2 @@
 # Add your own commands here!
-edit the config in /tmp/up/commands.toml = "echo up"
+edit_the_config = "echo up"
